@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Savings Goal Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <h1 class="text-center mb-4">💰 Savings Goal Planner</h1>
+
+    <div class="card shadow p-4">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="chart_image" id="chartImageInput">
+        <button type="submit" class="btn btn-primary">Calculate</button>
+      </form>
+    </div>
+
+    {% if result %}
+      {% if result.error %}
+        <div class="alert alert-danger mt-4">{{ result.error }}</div>
+      {% else %}
+        <div class="mt-5">
+          <h3 class="text-success">🎯 Plan Result</h3>
+          <ul class="list-group">
+            <li class="list-group-item">
+              <strong>Monthly Savings Needed:</strong>
+              {{ result.monthly_savings_converted }} {{ result.converted_currency }}
+              ({{ result.monthly_savings_required }} USD)
+            </li>
+            <li class="list-group-item">
+              <strong>Months Remaining:</strong> {{ result.months_remaining }}
+            </li>
+            <li class="list-group-item">
+              <strong>Message:</strong> {{ result.message }}
+            </li>
+            <li class="list-group-item">
+              <strong>Risk Profile:</strong> {{ result.risk_profile|title }}
+            </li>
+          </ul>
+
+          <div class="mt-4">
+            <h5>📈 Recommended ETF (Stock)</h5>
+            <p>
+              <strong>Symbol:</strong> {{ result.etf_symbol }}<br>
+              <strong>Price:</strong> {{ result.etf_price }} USD<br>
+              <strong>Change:</strong> {{ result.etf_change }}% (as of {{ result.investment_suggestions.recommended_etf.last_trading_day }})
+            </p>
+          </div>
+
+          <div class="mt-4">
+            <h5>💹 Recommended Cryptocurrencies</h5>
+            <ul class="list-group">
+              {% for coin in result.investment_suggestions.recommended_crypto %}
+                <li class="list-group-item">
+                  {{ coin.name }} ({{ coin.symbol|upper }}) – ${{ coin.price_usd }}
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          {% if result.email_status %}
+            <div class="alert alert-info mt-4">
+              <strong>Email Status:</strong> {{ result.email_status }}
+            </div>
+          {% endif %}
+
+          {% if result.chart_labels %}
+            <div class="mt-5">
+              <h4>📊 Investment Snapshot</h4>
+              <p class="text-muted">
+                This chart visualizes your ETF and crypto allocation. A log scale is used to normalize the differences in values.
+              </p>
+              <canvas id="investmentChart" height="150"></canvas>
+            </div>
+
+            <script>
+              const chartLabels = {{ result.chart_labels|safe }};
+              let chartValuesRaw = {{ result.chart_values|safe }};
+              let chartValues = chartValuesRaw.map(val => Math.log10(val + 1));
+
+              const chartCanvas = document.getElementById("investmentChart");
+              const chart = new Chart(chartCanvas, {
+                type: 'pie',
+                data: {
+                  labels: chartLabels,
+                  datasets: [{
+                    label: 'Log-scaled Value (USD)',
+                    data: chartValues,
+                    backgroundColor: [
+                      '#4CAF50', '#FFC107', '#36A2EB', '#FF6384',
+                      '#9966FF', '#00C853', '#FF9F40', '#9C27B0'
+                    ],
+                    borderWidth: 1
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  plugins: {
+                    legend: { position: 'top' },
+                    title: {
+                      display: true,
+                      text: 'ETF + Crypto Allocation (Log Scale)'
+                    }
+                  }
+                }
+              });
+
+              // Convert chart to base64 and store in hidden input
+              setTimeout(() => {
+                const imgData = chartCanvas.toDataURL("image/png");
+                document.getElementById("chartImageInput").value = imgData;
+                console.log("Chart image set:", imgData.slice(0, 30));
+              }, 1000);
+            </script>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+  <div class="text-center mt-4">
+  <a href="{% url 'analyze_expenses' %}" class="btn btn-outline-secondary">
+    💸 Try Expense Analyzer
+  </a>
+</div>
+</body>
+</html>

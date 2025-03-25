@@ -1,13 +1,8 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import InvestmentViewSet, SavingsViewSet
-from .views import homepage
-
-router = DefaultRouter()
-router.register(r'investments', InvestmentViewSet)
-router.register(r'savings', SavingsViewSet)
+from django.urls import path
+from .views import savings_goal_view, home_redirect,expense_analyzer_view
 
 urlpatterns = [
-    path('', homepage, name='homepage'),
-    path('api/', include(router.urls)),  # This is for the API-related routes
+    path('', home_redirect),
+    path('savings-goal/', savings_goal_view, name='savings_goal'),
+    path('analyze-expenses/', expense_analyzer_view, name='analyze_expenses'),
 ]

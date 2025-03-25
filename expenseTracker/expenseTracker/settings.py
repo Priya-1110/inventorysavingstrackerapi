@@ -13,19 +13,28 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 import os
 
-AWS_STORAGE_BUCKET_NAME = "23271957-smart-expense-tracker"
-AWS_S3_REGION_NAME = "eu-west-1" 
-
-# No need for access keys in Cloud9
-AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
-AWS_MEDIA_LOCATION = "uploads"
-
-MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/"
-MEDIA_ROOT = f"/mnt/{AWS_MEDIA_LOCATION}/"  # Local Cloud9 storage (optional)
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# AWS S3 Configuration
+AWS_STORAGE_BUCKET_NAME = "smartsaver-charts"  # ✅ Your bucket name
+AWS_S3_REGION_NAME = "eu-west-1"              # ✅ Your region
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+
+# Use S3 for uploaded files (like chart images)
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+# Optional if you need to serve files via MEDIA_URL
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# AWS S3 Configuration (No need for access keys in Cloud9)
+
+# Set the default file storage to S3 for file uploads
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -54,6 +63,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'expenses',
+    'storages',
 ]
 
 
@@ -141,6 +151,10 @@ USE_I18N = True
 
 USE_TZ = True
 
+LOGIN_URL = 'login'  
+LOGIN_REDIRECT_URL = 'investment_list'  
+LOGOUT_REDIRECT_URL = 'login'  
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
@@ -149,6 +163,7 @@ STATIC_URL = '/static/'
 # STATICFILES_DIRS = [
 #     BASE_DIR / "static",
 # ]
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]  # Add thi
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
