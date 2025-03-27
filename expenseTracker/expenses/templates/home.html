@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SmartSaver Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+    <div class="text-center">
+      <h1 class="mb-3">👋 Welcome to SmartSaver</h1>
+      {% if user.is_authenticated %}
+        <p class="lead">Hello, <strong>{{ user.username }}</strong>!</p>
+      {% endif %}
+
+      <div class="row justify-content-center mt-4">
+        <div class="col-md-4">
+          <a href="{% url 'savings_goal' %}" class="btn btn-success w-100 mb-3">💰 Plan Your Savings</a>
+        </div>
+        <div class="col-md-4">
+          <a href="{% url 'analyze_expenses' %}" class="btn btn-primary w-100 mb-3">💸 Analyze Expenses</a>
+        </div>
+        <div class="col-md-4">
+           <a href="{% url 'dashboard' %}" class="btn btn-dark mt-3">📊 View My Dashboard</a>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        {% if user.is_authenticated %}
+          <a href="{% url 'logout' %}" class="btn btn-outline-danger">Logout</a>
+        {% else %}
+          <a href="{% url 'login' %}" class="btn btn-outline-primary">Login</a>
+          <a href="{% url 'register' %}" class="btn btn-outline-secondary ms-2">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+
