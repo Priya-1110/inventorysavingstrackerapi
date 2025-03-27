@@ -165,9 +165,8 @@ STATIC_URL = '/static/'
 # STATICFILES_DIRS = [
 #     BASE_DIR / "static",
 # ]
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]  # for dev static files
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')    # for collected static in prod
-
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = 'STS'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
