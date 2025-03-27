@@ -37,6 +37,14 @@
                     <input type="hidden" name="timestamp" value="{{ entry.timestamp }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger float-end">🗑️ Delete</button>
                   </form>
+                  
+                  <form method="post" action="{% url 'generate_ai_tip_entry' %}">
+  {% csrf_token %}
+  <input type="hidden" name="entry" value='{{ entry|json_script:"entry-data" }}'>
+  <button class="btn btn-outline-secondary btn-sm mt-2" type="submit">
+    🧠 AI Tip
+  </button>
+</form>
                 </h5>
 
                 <p class="card-text small text-muted">{{ entry.timestamp|date:"Y-m-d H:i" }}</p>

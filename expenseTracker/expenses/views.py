@@ -17,6 +17,11 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from datetime import datetime
 import datetime
+import openai
+import os
+import decimal
+from together import Together
+from dotenv import load_dotenv
 
 # Redirect root to planner
 def home_redirect(request):
@@ -342,3 +347,63 @@ def delete_entry_view(request):
             print("[Delete] ❌ Failed to delete:", str(e))
 
     return redirect('dashboard')
+    
+
+# Handle Decimal for JSON
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        return super().default(obj)
+
+@login_required
+@csrf_exempt
+def generate_ai_tip_entry(request):
+    try:
+        # 🧠 Get recent user data from DynamoDB
+        dynamodb = boto3.resource('dynamodb', region_name='eu-west-1')
+        table = dynamodb.Table('SmartSaverUserData')
+
+        response = table.query(
+            KeyConditionExpression=boto3.dynamodb.conditions.Key('user_id').eq(str(request.user.id)),
+            ScanIndexForward=False,  # Latest entries first
+            Limit=5
+        )
+
+        entries = response.get("Items", [])
+
+        if not entries:
+            return render(request, "ai_tip.html", {
+                "tip": "No data found to generate a personalized insight. Try planning or analyzing first!"
+            })
+
+        # 📝 Format entries into a readable summary
+        summary = ""
+        for entry in entries:
+            summary += f"\nType: {entry['type']}\n"
+            summary += json.dumps(entry['data'], indent=2, cls=DecimalEncoder)
+            summary += "\n"
+
+        # 🧠 GPT prompt
+        prompt = f"""
+You are a smart financial advisor AI. Based on the user's recent savings plans and expense analysis, provide one highly personalized financial tip that could help them improve. Be specific and helpful.
+
+User Financial History:
+{summary}
+
+Personalized Financial Advice:
+"""
+
+        # 🚀 Together.ai API
+        client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
+        response = client.chat.completions.create(
+            model="mistralai/Mixtral-8x7B-Instruct-v0.1",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        tip = response.choices[0].message.content.strip()
+        return render(request, "ai_tip.html", {"tip": tip})
+
+    except Exception as e:
+        print("[AI TIP] ❌ Error:", e)
+        return render(request, "ai_tip.html", {"tip": "AI insight generation failed."})
