@@ -18,7 +18,7 @@ phases:
     commands:
       - python --version
       - echo Applying migrations...
-      - python manage.py migrate
+      - cd expenseTracker && python manage.py migrate
       - echo Running pylint with all messages disabled...
       - pylint $CODEBUILD_SRC_DIR/*.py --disable=all --score=y || true
       - pylint $CODEBUILD_SRC_DIR/expenses/*.py --disable=all --score=y || true
