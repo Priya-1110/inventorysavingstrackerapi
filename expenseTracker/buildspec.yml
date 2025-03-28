@@ -1,0 +1,40 @@
+version: 0.2
+
+env:
+  variables:
+    DJANGO_SETTINGS_MODULE: expenseTracker.settings
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo Installing dependencies...
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      - pip install pylint
+
+  pre_build:
+    commands:
+      - python --version
+      - echo Applying migrations...
+      - python manage.py migrate
+      - echo Running pylint with all messages disabled...
+      - pylint $CODEBUILD_SRC_DIR/*.py --disable=all --score=y || true
+      - pylint $CODEBUILD_SRC_DIR/expenses/*.py --disable=all --score=y || true
+      - pylint $CODEBUILD_SRC_DIR/expenseTracker/*.py --disable=all --score=y || true
+
+  build:
+    commands:
+      - echo Running tests with pytest...
+      - pytest --maxfail=5 --disable-warnings --tb=short
+      - echo Collecting static files...
+      - python manage.py collectstatic --noinput
+
+  post_build:
+    commands:
+      - echo Post-build phase completed successfully!
+
+artifacts:
+  files:
+    - '**/*'
