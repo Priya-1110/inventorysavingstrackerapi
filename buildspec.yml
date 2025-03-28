@@ -23,7 +23,7 @@ phases:
       - echo Applying migrations...
       - cd expenseTracker && python manage.py migrate
       - echo Collecting static files...
-      - cd expenseTracker && python manage.py collectstatic --noinput
+      - python manage.py collectstatic --noinput
 
   post_build:
     commands:
