@@ -4,133 +4,176 @@
   <meta charset="UTF-8">
   <title>Savings Goal Planner</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+  <link href="/static/css/savings_goal.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="bg-light">
-  <div class="container mt-5">
-    <h1 class="text-center mb-4">💰 Savings Goal Planner</h1>
+  <style>
+    .list-group-item {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+    .card.bg-gradient {
+      background: linear-gradient(135deg, #1e1e2f, #2a2a3d);
+      border: 1px solid #444;
+    }
+    .result-section h3, .result-section h5 {
+      font-weight: 600;
+    }
+    .result-section .card, .result-section .list-group-item {
+      border-radius: 10px;
+      margin-bottom: 1rem;
+    }
+    .btn-outline-light {
+      color: #ccc;
+      border-color: #666;
+    }
+    .btn-outline-light:hover {
+      color: #fff;
+      background-color: #666;
+    }
+    canvas {
+      max-width: 100%;
+      height: auto !important;
+    }
+    
+    .chart-wrapper-box {
+  border: 2px solid #444;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1e1e2f, #28283d);
+  box-shadow: 0 0 12px rgba(102, 204, 255, 0.08);
+  max-width: 400px;
+  margin: auto;
+  padding: 20px;
+  animation: fadeInUp 0.8s ease;
+}
 
-    <div class="card shadow p-4">
+.chart-wrapper-box canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+  </style>
+</head>
+<body class="dark-body">
+  <div class="container py-5">
+    <div class="form-box animate__animated animate__fadeInDown">
+      <h2 class="text-center mb-4">💰 Savings Goal Planner</h2>
+
       <form method="post" novalidate>
         {% csrf_token %}
         {{ form.as_p }}
         <input type="hidden" name="chart_image" id="chartImageInput">
-        <button type="submit" class="btn btn-primary">Calculate</button>
+        <button type="submit" class="btn btn-success w-100 mt-2">Calculate</button>
       </form>
     </div>
 
     {% if result %}
-      {% if result.error %}
-        <div class="alert alert-danger mt-4">{{ result.error }}</div>
-      {% else %}
-        <div class="mt-5">
-          <h3 class="text-success">🎯 Plan Result</h3>
-          <ul class="list-group">
-            <li class="list-group-item">
-              <strong>Monthly Savings Needed:</strong>
-              {{ result.monthly_savings_converted }} {{ result.converted_currency }}
-              ({{ result.monthly_savings_required }} USD)
-            </li>
-            <li class="list-group-item">
-              <strong>Months Remaining:</strong> {{ result.months_remaining }}
-            </li>
-            <li class="list-group-item">
-              <strong>Message:</strong> {{ result.message }}
-            </li>
-            <li class="list-group-item">
-              <strong>Risk Profile:</strong> {{ result.risk_profile|title }}
-            </li>
-          </ul>
+      <div class="result-section animate__animated animate__fadeInUp mt-5">
+        {% if result.error %}
+          <div class="alert alert-danger">{{ result.error }}</div>
+        {% else %}
+          <button class="btn btn-outline-light mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#resultDetails" aria-expanded="false" aria-controls="resultDetails">
+            Toggle Plan Details
+          </button>
 
-          <div class="mt-4">
-            <h5>📈 Recommended ETF (Stock)</h5>
-            <p>
-              <strong>Symbol:</strong> {{ result.etf_symbol }}<br>
-              <strong>Price:</strong> {{ result.etf_price }} USD<br>
-              <strong>Change:</strong> {{ result.etf_change }}%
-              {% if result.investment_suggestions.recommended_etf.last_trading_day %}
-                (as of {{ result.investment_suggestions.recommended_etf.last_trading_day }})
-              {% endif %}
-            </p>
+          <div class="collapse show" id="resultDetails">
+            <div class="row">
+              <div class="col-md-6">
+                <h3 class="text-success">🎯 Plan Result</h3>
+                <ul class="list-group mb-4">
+                  <li class="list-group-item bg-dark text-light"><strong>Monthly Savings Needed:</strong> {{ result.monthly_savings_converted }} {{ result.converted_currency }} ({{ result.monthly_savings_required }} USD)</li>
+                  <li class="list-group-item bg-dark text-light"><strong>Months Remaining:</strong> {{ result.months_remaining }}</li>
+                  <li class="list-group-item bg-dark text-light"><strong>Message:</strong> {{ result.message }}</li>
+                  <li class="list-group-item bg-dark text-light"><strong>Risk Profile:</strong> {{ result.risk_profile|title }}</li>
+                </ul>
+
+                <div class="card bg-gradient mb-4 text-light p-3">
+                  <h5>📈 Recommended ETF (Stock)</h5>
+                  <p>
+                    <strong>Symbol:</strong> {{ result.etf_symbol }}<br>
+                    <strong>Price:</strong> {{ result.etf_price }} USD<br>
+                    <strong>Change:</strong> {{ result.etf_change }}%
+                    {% if result.investment_suggestions.recommended_etf.last_trading_day %}
+                      (as of {{ result.investment_suggestions.recommended_etf.last_trading_day }})
+                    {% endif %}
+                  </p>
+                </div>
+
+                <div class="card bg-gradient text-light p-3">
+                  <h5>💹 Recommended Cryptocurrencies</h5>
+                  <ul class="list-group list-group-flush">
+                    {% for coin in result.investment_suggestions.recommended_crypto %}
+                      <li class="list-group-item bg-dark text-light">
+                        {{ coin.name }} ({{ coin.symbol|upper }}) – ${{ coin.price_usd }}
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+
+                {% if result.email_status %}
+                  <div class="alert alert-info mt-4">
+                    <strong>Email Status:</strong> {{ result.email_status }}
+                  </div>
+                {% endif %}
+              </div>
+<div class="col-md-6">
+  {% if result.chart_labels %}
+    <div class="chart-wrapper-box text-center p-3">
+      <h4 class="text-info mb-2">📊 Investment Snapshot</h4>
+      <p class="text-muted small">Your ETF and crypto breakdown (log-scaled).</p>
+      <canvas id="investmentChart" height="180"></canvas>
+    </div>
+  {% endif %}
+</div>
           </div>
 
-          <div class="mt-4">
-            <h5>💹 Recommended Cryptocurrencies</h5>
-            <ul class="list-group">
-              {% for coin in result.investment_suggestions.recommended_crypto %}
-                <li class="list-group-item">
-                  {{ coin.name }} ({{ coin.symbol|upper }}) – ${{ coin.price_usd }}
-                </li>
-              {% endfor %}
-            </ul>
-          </div>
+          <script>
+            const chartLabels = {{ result.chart_labels|safe }};
+            let chartValuesRaw = {{ result.chart_values|safe }};
+            let chartValues = chartValuesRaw.map(val => Math.log10(val + 1));
 
-          {% if result.email_status %}
-            <div class="alert alert-info mt-4">
-              <strong>Email Status:</strong> {{ result.email_status }}
-            </div>
-          {% endif %}
-
-          {% if result.chart_labels %}
-            <div class="mt-5">
-              <h4>📊 Investment Snapshot</h4>
-              <p class="text-muted">
-                This chart visualizes your ETF and crypto allocation. A log scale is used to normalize the differences in values.
-              </p>
-              <canvas id="investmentChart" height="150"></canvas>
-
-
-            </div>
-
-            <script>
-              const chartLabels = {{ result.chart_labels|safe }};
-              let chartValuesRaw = {{ result.chart_values|safe }};
-              let chartValues = chartValuesRaw.map(val => Math.log10(val + 1));
-
-              const chartCanvas = document.getElementById("investmentChart");
-              const chart = new Chart(chartCanvas, {
-                type: 'pie',
-                data: {
-                  labels: chartLabels,
-                  datasets: [{
-                    label: 'Log-scaled Value (USD)',
-                    data: chartValues,
-                    backgroundColor: [
-                      '#4CAF50', '#FFC107', '#36A2EB', '#FF6384',
-                      '#9966FF', '#00C853', '#FF9F40', '#9C27B0'
-                    ],
-                    borderWidth: 1
-                  }]
-                },
-                options: {
-                  responsive: true,
-                  plugins: {
-                    legend: { position: 'top' },
-                    title: {
-                      display: true,
-                      text: 'ETF + Crypto Allocation (Log Scale)'
-                    }
+            const chartCanvas = document.getElementById("investmentChart");
+            const chart = new Chart(chartCanvas, {
+              type: 'pie',
+              data: {
+                labels: chartLabels,
+                datasets: [{
+                  label: 'Log-scaled Value (USD)',
+                  data: chartValues,
+                  backgroundColor: [
+                    '#4CAF50', '#FFC107', '#36A2EB', '#FF6384',
+                    '#9966FF', '#00C853', '#FF9F40', '#9C27B0'
+                  ],
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: { position: 'top' },
+                  title: {
+                    display: true,
+                    text: 'ETF + Crypto Allocation (Log Scale)',
+                    color: '#fff'
                   }
                 }
-              });
+              }
+            });
 
-              // Convert chart to base64 and store in hidden input
-              setTimeout(() => {
-                const imgData = chartCanvas.toDataURL("image/png");
-                document.getElementById("chartImageInput").value = imgData;
-                console.log("Chart image set:", imgData.slice(0, 30));
-              }, 1000);
-            </script>
-          {% endif %}
-        </div>
-      {% endif %}
+            setTimeout(() => {
+              const imgData = chartCanvas.toDataURL("image/png");
+              document.getElementById("chartImageInput").value = imgData;
+            }, 1000);
+          </script>
+        {% endif %}
+      </div>
     {% endif %}
+
+    <div class="text-center mt-5">
+      <a href="{% url 'analyze_expenses' %}" class="btn btn-outline-info">💸 Try Expense Analyzer</a>
+    </div>
   </div>
 
-  <div class="text-center mt-4">
-    <a href="{% url 'analyze_expenses' %}" class="btn btn-outline-secondary">
-      💸 Try Expense Analyzer
-    </a>
-  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,17 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>🧠 Smart AI Tip</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/css/ai_tip.css" rel="stylesheet">
 </head>
-<body class="bg-light">
-  <div class="container mt-5 text-center">
-    <h2 class="mb-4">🧠 SmartSaver AI Suggestion</h2>
-    <div class="card shadow p-4">
-      <p class="lead">{{ tip }}</p>
+<body class="dark-body">
+  <div class="chat-container">
+
+    <!-- User Prompt -->
+    <div class="chat-row user-row">
+      <img src="/static/media/user.png" class="avatar" alt="User">
+      <div class="chat-bubble user-bubble">
+        <strong>You:</strong> What's your advice for my current savings and expense habits?
+      </div>
     </div>
 
-    <a href="{% url 'dashboard' %}" class="btn btn-dark mt-4">← Back to Dashboard</a>
+    <!-- Typing animation -->
+    <div class="chat-row ai-row" id="typing-bubble">
+      <img src="/static/media/ai.png" class="avatar" alt="AI">
+      <div class="chat-bubble ai-bubble typing">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+    </div>
+
+    <!-- AI Response (hidden until typing done) -->
+    <div class="chat-row ai-row d-none" id="ai-response">
+      <img src="/static/media/ai.png" class="avatar" alt="AI">
+      <div class="chat-bubble ai-bubble">
+        <strong>SmartSaver AI:</strong><br>
+        {{ tip }}
+        <div class="voice-tag">🔊 Generating voice insight...</div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <a href="{% url 'dashboard' %}" class="btn btn-back">← Back to Dashboard</a>
+    </div>
   </div>
+
+  <script>
+    // Simulate typing...
+    setTimeout(() => {
+      document.getElementById("typing-bubble").classList.add("d-none");
+      document.getElementById("ai-response").classList.remove("d-none");
+    }, 2000);
+  </script>
 </body>
 </html>

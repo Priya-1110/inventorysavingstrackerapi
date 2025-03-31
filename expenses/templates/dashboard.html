@@ -4,36 +4,98 @@
   <meta charset="UTF-8">
   <title>📊 Dashboard | SmartSaver</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="/static/css/savings_goal.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
   <style>
-    .card-type-savings { border-left: 5px solid #28a745; }
-    .card-type-expense { border-left: 5px solid #007bff; }
+    .card-type-savings {
+      border-left: 5px solid #28a745;
+      background: linear-gradient(to right, #1e2b20, #1a3027);
+      color: #d4f8dd;
+    }
+
+    .card-type-expense {
+      border-left: 5px solid #007bff;
+      background: linear-gradient(to right, #1c233a, #1a1f33);
+      color: #c8dcff;
+    }
+
+    .dashboard-heading {
+      font-weight: bold;
+      color: #66ccff;
+      text-shadow: 1px 1px 2px #000;
+    }
+
+    .card-title {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn-outline-danger {
+      border-color: #ff6666;
+      color: #ff6666;
+    }
+
+    .btn-outline-danger:hover {
+      background-color: #ff6666;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background-color: #343a40;
+      border: none;
+    }
+
+    .btn-secondary:hover {
+      background-color: #495057;
+    }
+
+    .btn-glow {
+      transition: all 0.3s ease;
+      font-weight: 500;
+      font-size: 1rem;
+      box-shadow: 0 0 10px rgba(102, 204, 255, 0.3);
+    }
+
+    .btn-glow:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px rgba(102, 204, 255, 0.6);
+    }
+
+    .alert-info {
+      background-color: #2a2d3d;
+      color: #ccc;
+      border: 1px solid #444;
+    }
   </style>
 </head>
-<body class="bg-light">
+<body class="dark-body">
   <div class="container py-5">
-    <div class="mb-4 text-center">
-      <h1>📊 SmartSaver Dashboard</h1>
-      <p class="lead">Welcome back, <strong>{{ user.username }}</strong>!</p>
+    <div class="mb-5 text-center">
+      <h1 class="dashboard-heading animate__animated animate__fadeInDown">📊 SmartSaver Dashboard</h1>
+      <p class="lead text-light">Welcome back, <strong>{{ user.username }}</strong>!</p>
     </div>
 
     {% if savings or expenses %}
       <div class="row row-cols-1 row-cols-md-2 g-4">
 
         {% for entry in savings %}
-          <div class="col">
+          <div class="col animate__animated animate__fadeInLeft">
             <div class="card shadow-sm card-type-savings">
               <div class="card-body">
-                <h5 class="card-title">💰 Savings Plan
+                <h5 class="card-title">
+                  💰 Savings Plan
                   <form action="{% url 'delete_entry' %}" method="post" style="display:inline;">
                     {% csrf_token %}
                     <input type="hidden" name="type" value="savings">
-                     <a href="{% url 'generate_ai_tip_entry' %}" class="btn btn-secondary me-2">🧠 Generate AI Tip</a>
                     <input type="hidden" name="id" value="{{ entry.id }}">
-                    <button type="submit" class="btn btn-sm btn-outline-danger float-end">🗑️ Delete</button>
+                    <a href="{% url 'generate_ai_tip_entry' %}" class="btn btn-sm btn-secondary me-2">🧠 AI Tip</a>
+                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑️</button>
                   </form>
                 </h5>
                 <p class="card-text small text-muted">{{ entry.created_at|date:"Y-m-d H:i" }}</p>
-                <p><strong>Goal Amount:</strong> {{ entry.goal_amount }}</p>
+                <p><strong>Goal Amount:</strong> ${{ entry.goal_amount }}</p>
                 <p><strong>Monthly Required:</strong> {{ entry.monthly_savings_converted }} {{ entry.converted_currency }}</p>
                 <p><strong>ETF:</strong> {{ entry.etf_symbol }} - ${{ entry.etf_price }} ({{ entry.etf_change }}%)</p>
               </div>
@@ -42,21 +104,22 @@
         {% endfor %}
 
         {% for entry in expenses %}
-          <div class="col">
+          <div class="col animate__animated animate__fadeInRight">
             <div class="card shadow-sm card-type-expense">
               <div class="card-body">
-                <h5 class="card-title">💸 Expense Analysis
+                <h5 class="card-title">
+                  💸 Expense Analysis
                   <form action="{% url 'delete_entry' %}" method="post" style="display:inline;">
                     {% csrf_token %}
                     <input type="hidden" name="type" value="expense">
                     <input type="hidden" name="id" value="{{ entry.id }}">
-                     <a href="{% url 'generate_ai_tip_entry' %}" class="btn btn-secondary me-2">🧠 Generate AI Tip</a>
-                    <button type="submit" class="btn btn-sm btn-outline-danger float-end">🗑️ Delete</button>
+                    <a href="{% url 'generate_ai_tip_entry' %}" class="btn btn-sm btn-secondary me-2">🧠 AI Tip</a>
+                    <button type="submit" class="btn btn-sm btn-outline-danger">🗑️</button>
                   </form>
                 </h5>
                 <p class="card-text small text-muted">{{ entry.created_at|date:"Y-m-d H:i" }}</p>
-                <p><strong>Total Spent:</strong> {{ entry.total_amount_spent }}</p>
-                <p><strong>Budget:</strong> {{ entry.total_amount_target }}</p>
+                <p><strong>Total Spent:</strong> ${{ entry.total_amount_spent }}</p>
+                <p><strong>Budget:</strong> ${{ entry.total_amount_target }}</p>
               </div>
             </div>
           </div>
@@ -64,17 +127,18 @@
 
       </div>
     {% else %}
-      <div class="alert alert-info text-center">
+      <div class="alert alert-info text-center mt-5">
         No activity yet. Start planning or analyzing!
       </div>
     {% endif %}
 
     <div class="mt-5 text-center">
-      <a href="{% url 'savings_goal' %}" class="btn btn-success me-2">💰 Plan Savings</a>
-      <a href="{% url 'analyze_expenses' %}" class="btn btn-primary me-2">💸 Analyze Expenses</a>
-     
-      <a href="{% url 'logout' %}" class="btn btn-outline-danger">Logout</a>
+      <a href="{% url 'savings_goal' %}" class="btn btn-success me-2 btn-glow">💰 Plan Savings</a>
+      <a href="{% url 'analyze_expenses' %}" class="btn btn-primary me-2 btn-glow">💸 Analyze Expenses</a>
+      <a href="{% url 'logout' %}" class="btn btn-outline-danger btn-glow">Logout</a>
     </div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

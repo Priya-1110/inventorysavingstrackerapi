@@ -1,0 +1,125 @@
+body.dark-body {
+  background-color: #0d0f1a;
+  background-image:
+    radial-gradient(#2f354d 1.2px, transparent 1.2px),
+    radial-gradient(#2f354d 1.2px, transparent 1.2px);
+  background-position: 0 0, 25px 25px;
+  background-size: 50px 50px;
+  color: #fff;
+  font-family: 'Segoe UI', sans-serif;
+  min-height: 100vh;
+}
+
+/* Heading */
+.dashboard-heading {
+  font-weight: bold;
+  color: #66ccff;
+  text-shadow: 1px 1px 2px #000;
+}
+
+/* Card Styles */
+.card-type-savings {
+  border-left: 5px solid #28a745;
+  background: linear-gradient(to right, #1e2b20, #1a3027);
+  color: #d4f8dd;
+}
+
+.card-type-expense {
+  border-left: 5px solid #007bff;
+  background: linear-gradient(to right, #1c233a, #1a1f33);
+  color: #c8dcff;
+}
+
+.card {
+  border-radius: 10px;
+  transition: transform 0.3s ease;
+}
+.card:hover {
+  transform: scale(1.02);
+}
+
+/* Buttons */
+.btn-glow {
+  transition: all 0.3s ease;
+  font-weight: 500;
+  font-size: 1rem;
+  box-shadow: 0 0 10px rgba(102, 204, 255, 0.3);
+}
+
+.btn-glow:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(102, 204, 255, 0.6);
+}
+
+.btn-success {
+  background-color: #28a745;
+  border: none;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #0069d9;
+}
+
+.btn-secondary {
+  background-color: #343a40;
+  border: none;
+}
+
+.btn-secondary:hover {
+  background-color: #495057;
+}
+
+.btn-outline-danger {
+  border-color: #ff6666;
+  color: #ff6666;
+}
+
+.btn-outline-danger:hover {
+  background-color: #ff6666;
+  color: #fff;
+}
+
+/* Alerts */
+.alert-info {
+  background-color: #2a2d3d;
+  color: #ccc;
+  border: 1px solid #444;
+}
+
+/* Text overrides */
+.card-text,
+.card-title {
+  font-size: 0.95rem;
+}
+
+.card-title {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.text-muted {
+  color: #bbb !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .btn-glow {
+    font-size: 0.95rem;
+  }
+
+  .card-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

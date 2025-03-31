@@ -4,79 +4,101 @@
   <meta charset="UTF-8">
   <title>Expense Analyzer</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    .category-row { margin-bottom: 10px; }
-  </style>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+  <link href="/static/css/savings_goal.css" rel="stylesheet"> <!-- Shared styling -->
 </head>
-<body class="bg-light">
-  <div class="container mt-5">
-    <h2 class="mb-4">💸 Expense Analyzer</h2>
+<body class="dark-body">
+  <div class="container py-5">
+    <div class="form-box animate__animated animate__fadeInDown">
+      <h2 class="text-center mb-4">💸 Expense Analyzer</h2>
 
-    <form method="post">
-      {% csrf_token %}
-      <div class="mb-3">
-        {{ form.total_amount_target.label_tag }} {{ form.total_amount_target }}
-      </div>
-      <div class="mb-3">
-        {{ form.total_amount_spent.label_tag }} {{ form.total_amount_spent }}
-      </div>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="mb-3">
+          {{ form.total_amount_target.label_tag }} {{ form.total_amount_target }}
+        </div>
+        <div class="mb-3">
+          {{ form.total_amount_spent.label_tag }} {{ form.total_amount_spent }}
+        </div>
 
-      <h5 class="mt-4">Add Expense Categories:</h5>
-      <div id="category-list"></div>
-      <input type="hidden" name="category_count" id="category-count" value="0">
+        <h5 class="mt-4">Select Expense Categories:</h5>
+        <div id="category-list"></div>
+        <input type="hidden" name="category_count" id="category-count" value="0">
 
-      <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="addCategory()">➕ Add Category</button>
-      <br><br>
-      <button type="submit" class="btn btn-primary">Analyze</button>
-    </form>
+        <button type="button" class="btn btn-outline-info btn-sm mt-2" onclick="addCategory()">➕ Add Category</button>
+        <br><br>
+        <button type="submit" class="btn btn-success w-100">Analyze</button>
+      </form>
+    </div>
 
     {% if result %}
-      <div class="mt-5">
+      <div class="result-section animate__animated animate__fadeInUp mt-5">
         {% if result.error %}
           <div class="alert alert-danger">{{ result.error }}</div>
         {% else %}
-          <h4 class="text-success">📊 Analysis Result</h4>
-          <ul class="list-group mb-3">
-            <li class="list-group-item"><strong>Total Spent:</strong> ${{ result.total_spent|default:"N/A" }}</li>
-            <li class="list-group-item"><strong>Budget Target:</strong> ${{ result.total_target|default:"N/A" }}</li>
-            <li class="list-group-item"><strong>Result:</strong> {{ result.message|default:"No message" }}</li>
-            <li class="list-group-item"><strong>Alert:</strong> {{ result.alert|default:"No alert" }}</li>
-            <li class="list-group-item"><strong>Cut Suggestion:</strong> {{ result.cut_suggestion|default:"None" }}</li>
-            <li class="list-group-item text-info"><strong>💡 Funny Tip:</strong> {{ result.funny_tip|default:"—" }}</li>
-          </ul>
+          <button class="btn btn-outline-light mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#resultCollapse">
+            📊 Toggle Analysis Result
+          </button>
 
-          <h5>Category Breakdown:</h5>
-          <ul class="list-group">
-            {% if result.category_breakdown %}
-              {% for cat, amt in result.category_breakdown.items %}
-                <li class="list-group-item">{{ cat }}: ${{ amt }}</li>
-              {% endfor %}
-            {% else %}
-              <li class="list-group-item">No breakdown available</li>
-            {% endif %}
-          </ul>
+          <div class="collapse show" id="resultCollapse">
+            <div class="card bg-gradient text-light p-4">
+              <h4 class="text-info">📊 Analysis Result</h4>
+              <ul class="list-group list-group-flush mb-3">
+                <li class="list-group-item bg-dark text-light"><strong>Total Spent:</strong> ${{ result.total_spent }}</li>
+                <li class="list-group-item bg-dark text-light"><strong>Budget Target:</strong> ${{ result.total_target }}</li>
+                <li class="list-group-item bg-dark text-light"><strong>Result:</strong> {{ result.message }}</li>
+                <li class="list-group-item bg-dark text-light"><strong>Alert:</strong> {{ result.alert }}</li>
+                <li class="list-group-item bg-dark text-light"><strong>Cut Suggestion:</strong> {{ result.cut_suggestion }}</li>
+                <li class="list-group-item text-info bg-dark"><strong>💡 Funny Tip:</strong> {{ result.funny_tip }}</li>
+              </ul>
+
+              <h5 class="text-light mt-4">📂 Category Breakdown</h5>
+              <ul class="list-group list-group-flush">
+                {% for cat, amt in result.category_breakdown.items %}
+                  <li class="list-group-item bg-dark text-light">{{ cat }}: ${{ amt }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
         {% endif %}
       </div>
     {% endif %}
   </div>
 
   <script>
+    const categoryOptions = [
+      'Food & Groceries',
+      'Transport',
+      'Entertainment',
+      'Utilities',
+      'Healthcare',
+      'Education',
+      'Subscriptions',
+      'Travel',
+      'Shopping',
+      'Others'
+    ];
+
     let count = 0;
 
     function addCategory() {
       const container = document.getElementById("category-list");
 
       const row = document.createElement("div");
-      row.classList.add("row", "category-row");
+      row.classList.add("row", "category-row", "mb-3");
+
+      const categorySelect = `
+        <select name="category_${count}" class="form-control">
+          ${categoryOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('')}
+        </select>
+      `;
 
       row.innerHTML = `
-        <div class="col-md-5">
-          <input type="text" name="category_${count}" class="form-control" placeholder="Category">
-        </div>
-        <div class="col-md-5">
+        <div class="col-md-5 mb-2">${categorySelect}</div>
+        <div class="col-md-5 mb-2">
           <input type="number" name="amount_${count}" class="form-control" placeholder="Amount" step="0.01" min="0">
         </div>
-        <div class="col-md-2">
+        <div class="col-md-2 mb-2 text-end">
           <button type="button" class="btn btn-danger" onclick="this.parentElement.parentElement.remove(); updateCount()">✖️</button>
         </div>
       `;
@@ -91,8 +113,9 @@
       document.getElementById("category-count").value = total;
     }
 
-    // Add one row by default
     window.onload = () => addCategory();
   </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
