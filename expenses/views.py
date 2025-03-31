@@ -21,11 +21,9 @@ import openai
 import os
 import decimal
 from together import Together
+from .models import SavingsPlan, ExpenseAnalysis
 from dotenv import load_dotenv
 
-# Redirect root to planner
-def home_redirect(request):
-    return redirect('register')
 
 @login_required
 def homepage_view(request):
@@ -38,6 +36,12 @@ CURRENCY_API = "https://api.frankfurter.app/latest"
 EMAIL_API = "https://574zxm1da6.execute-api.eu-west-1.amazonaws.com/default/x23271281-EmailSenderAPI"
 EXPENSE_ANALYZER_API = "https://iuro44novi.execute-api.eu-west-1.amazonaws.com/dev/analyze-expenses"
 PASSWORD_CHECKER_API = "https://jbcss4xjuua4s4ihxn5hv5glo40ejyau.lambda-url.eu-west-1.on.aws/"
+# Home redirect
+
+def home_redirect(request):
+    return redirect('register')
+
+# Register View
 
 def register_view(request):
     if request.method == "POST":
@@ -47,7 +51,6 @@ def register_view(request):
             email = form.cleaned_data["email"]
             password = form.cleaned_data["password"]
 
-            # ✅ Check if username exists before creating
             if User.objects.filter(username=username).exists():
                 form.add_error("username", "Username already taken.")
             elif User.objects.filter(email=email).exists():
@@ -66,12 +69,17 @@ def register_view(request):
         form = RegisterForm()
 
     return render(request, "register.html", {"form": form})
-    
-# S3 chart upload function
+
+# Upload to S3 with debug
+
 def upload_chart_to_s3(base64_image):
     try:
         print("[S3 Upload] Starting upload...")
         s3 = boto3.client("s3")
+
+        if not base64_image or "," not in base64_image:
+            print("[S3 Upload] ❌ Invalid base64 image")
+            return None
 
         file_data = base64.b64decode(base64_image.split(',')[1])
         filename = f"charts/chart-{uuid.uuid4().hex}.png"
@@ -96,171 +104,149 @@ def upload_chart_to_s3(base64_image):
         return None
 
 # Savings Planner View
+
+@login_required
 def savings_goal_view(request):
     converted_data = None
-
     if request.method == "POST":
         form = SavingsGoalForm(request.POST)
         if form.is_valid():
             goal_amount = float(form.cleaned_data['goal_amount'])
             current_savings = float(form.cleaned_data['current_savings'])
-            goal_date = str(form.cleaned_data['goal_date'])
-            target_currency = form.cleaned_data['currency']
+            goal_date = form.cleaned_data['goal_date']
+            currency = form.cleaned_data['currency']
             user_email = form.cleaned_data.get("email")
             chart_image_base64 = form.cleaned_data.get("chart_image")
 
             print("[Chart] base64 length:", len(chart_image_base64 or ""))
-            print("[Chart] Sample base64:", chart_image_base64[:50] if chart_image_base64 else "None")
+            print("[Chart] base64 sample:", chart_image_base64[:50] if chart_image_base64 else "None")
 
             payload = {
                 "goal_amount": goal_amount,
                 "current_savings": current_savings,
-                "goal_date": goal_date
+                "goal_date": str(goal_date)
             }
 
             try:
-                planner_response = requests.post(SAVINGS_PLANNER_API, json=payload)
-                raw_data = planner_response.json() if planner_response.status_code == 200 else {}
-                body = raw_data.get("body", raw_data)
-                planner_data = json.loads(body) if isinstance(body, str) else body
+                response = requests.post(SAVINGS_PLANNER_API, json=payload)
+                data = response.json() if response.status_code == 200 else {}
+
+                if "monthly_savings_required" not in data:
+                    raise ValueError("Missing 'monthly_savings_required' in API response.")
 
                 # Currency conversion
-                if target_currency != "USD":
+                if currency != "USD":
                     try:
-                        rate_data = requests.get(f"{CURRENCY_API}?from=USD&to={target_currency}").json()
-                        rate = float(rate_data["rates"].get(target_currency))
-                        planner_data["monthly_savings_converted"] = round(planner_data["monthly_savings_required"] * rate, 2)
-                        planner_data["converted_currency"] = target_currency
-                    except Exception as e:
-                        print("[Currency] ❌ Error during conversion:", e)
-                        planner_data["monthly_savings_converted"] = planner_data["monthly_savings_required"]
-                        planner_data["converted_currency"] = "USD (error fallback)"
+                        rate = requests.get(f"{CURRENCY_API}?from=USD&to={currency}").json()["rates"][currency]
+                        data["monthly_savings_converted"] = round(data["monthly_savings_required"] * rate, 2)
+                        data["converted_currency"] = currency
+                    except Exception:
+                        data["monthly_savings_converted"] = data["monthly_savings_required"]
+                        data["converted_currency"] = "USD"
                 else:
-                    planner_data["monthly_savings_converted"] = planner_data["monthly_savings_required"]
-                    planner_data["converted_currency"] = "USD"
+                    data["monthly_savings_converted"] = data["monthly_savings_required"]
+                    data["converted_currency"] = "USD"
 
-                # Chart data
-                crypto_data = planner_data.get("investment_suggestions", {}).get("recommended_crypto", [])
-                etf_data = planner_data.get("investment_suggestions", {}).get("recommended_etf", {})
+                etf = data.get("investment_suggestions", {}).get("recommended_etf", {})
+                crypto = data.get("investment_suggestions", {}).get("recommended_crypto", [])
 
-                etf_symbol = etf_data.get("symbol", "")
-                etf_price = float(etf_data.get("price_usd", 0))
-                etf_change = float(etf_data.get("change_percent", "0").replace("%", ""))
-
-                labels = [f"{etf_symbol} Price", f"{etf_symbol} Change %"]
-                values = [etf_price, etf_change]
-                for coin in crypto_data:
+                labels = [f"{etf.get('symbol', '')} Price", f"{etf.get('symbol', '')} Change %"]
+                values = [float(etf.get("price_usd", 0)), float(etf.get("change_percent", "0").replace("%", ""))]
+                for coin in crypto:
                     labels.append(f"{coin['name']} ({coin['symbol'].upper()})")
                     values.append(coin["price_usd"])
 
-                planner_data.update({
-                    "etf_symbol": etf_symbol,
-                    "etf_price": etf_price,
-                    "etf_change": etf_change,
+                data.update({
+                    "etf_symbol": etf.get("symbol", ""),
+                    "etf_price": float(etf.get("price_usd", 0)),
+                    "etf_change": float(etf.get("change_percent", "0").replace("%", "")),
                     "chart_labels": labels,
-                    "chart_values": values
+                    "chart_values": values,
                 })
 
-                # Upload chart to S3
                 chart_url = upload_chart_to_s3(chart_image_base64) if chart_image_base64 else None
-                print("[Chart] Final chart URL:", chart_url)
+                data["chart_url"] = chart_url
 
-                # Send email
                 if user_email:
-                    crypto_lines = [
-                        f"• {c['name']} ({c['symbol'].upper()}): ${c['price_usd']}" for c in crypto_data
-                    ]
-                    email_text = f"""
-Hello,
-
-Here is your personalized savings and investment plan:
-
-🎯 Savings Goal:
-- Monthly: {planner_data['monthly_savings_converted']} {planner_data['converted_currency']} ({planner_data['monthly_savings_required']} USD)
-- Duration: {planner_data['months_remaining']} months
-- Risk: {planner_data['risk_profile'].capitalize()}
-
-📈 ETF:
-- {etf_symbol} - ${etf_price}, Change: {etf_change}%
-
-💹 Cryptos:
-{chr(10).join(crypto_lines)}
-
-📊 Chart Snapshot:
-{chart_url if chart_url else "Chart not available"}
-
-Thank you for using SmartSaver!
-                    """
-
                     email_payload = {
                         "email": user_email,
-                        "subject": "Your SmartSaver Financial Plan Summary",
-                        "content": email_text.strip()
+                        "subject": "Your SmartSaver Plan",
+                        "content": f"Generated plan with monthly saving: {data['monthly_savings_converted']} {data['converted_currency']}\n\nChart: {chart_url or 'Chart not available'}"
                     }
+                    requests.post(EMAIL_API, json=email_payload)
 
-                    res = requests.post(EMAIL_API, json=email_payload)
-                    print("[Email API] Status:", res.status_code)
-                    print("[Email API] Response:", res.text)
-                    planner_data["email_status"] = "✅ Email sent!" if res.status_code == 200 else "⚠️ Failed to send email."
+                converted_data = data
 
-                converted_data = planner_data
-                save_to_dynamodb(request.user, planner_data, entry_type='savings_plan')
+                # Save to model
+                SavingsPlan.objects.create(
+                    user=request.user,
+                    goal_amount=goal_amount,
+                    current_savings=current_savings,
+                    goal_date=goal_date,
+                    monthly_savings_required=data['monthly_savings_required'],
+                    monthly_savings_converted=data['monthly_savings_converted'],
+                    converted_currency=data['converted_currency'],
+                    etf_symbol=data['etf_symbol'],
+                    etf_price=data['etf_price'],
+                    etf_change=data['etf_change']
+                )
+
             except Exception as e:
-                print("[Savings Planner] ❌ Exception:", e)
-                converted_data = {"error": f"API error: {str(e)}"}
+                print("[Savings Planner] ❌ Exception:", str(e))
+                converted_data = {"error": f"Exception: {str(e)}"}
 
     else:
         form = SavingsGoalForm()
-    return render(request, "goal_result.html", {
-        "form": form,
-        "result": converted_data
-    })
+
+    return render(request, "goal_result.html", {"form": form, "result": converted_data})
 
 
-# Expense Analyzer View
+# Expense Analyzer
+
+@login_required
 def expense_analyzer_view(request):
-    analysis_result = None
+    result = None
     if request.method == "POST":
         form = ExpenseAnalyzerForm(request.POST)
         categories = []
         count = int(request.POST.get("category_count", 0))
-
         for i in range(count):
-            category = request.POST.get(f"category_{i}")
-            amount = request.POST.get(f"amount_{i}")
-            if category and amount:
-                categories.append({"category": category, "amount": float(amount)})
-
-        if form.is_valid() and categories:
+            cat = request.POST.get(f"category_{i}")
+            amt = request.POST.get(f"amount_{i}")
+            if cat and amt:
+                categories.append({"category": cat, "amount": float(amt)})
+        if form.is_valid():
             payload = {
                 "total_amount_spent": float(form.cleaned_data['total_amount_spent']),
                 "total_amount_target": float(form.cleaned_data['total_amount_target']),
                 "expenses": categories
             }
-
             try:
                 response = requests.post(EXPENSE_ANALYZER_API, json=payload)
-                if response.status_code == 200:
-                    api_raw = response.json()
-                    if isinstance(api_raw.get("body"), str):
-                        analysis_result = json.loads(api_raw["body"])
-                    else:
-                        analysis_result = api_raw.get("body", {})
-                    print("[Expense API] Final parsed result:", analysis_result)
-                    
-                else:
-                    analysis_result = {"error": f"API returned status {response.status_code}"}
-                    
-                save_to_dynamodb(request.user, analysis_result, entry_type='expense_analysis')
-
+                parsed = json.loads(response.json().get("body", '{}')) if response.status_code == 200 else {}
+                result = parsed
+                # Save to model
+                ExpenseAnalysis.objects.create(
+                    user=request.user,
+                    total_amount_spent=payload['total_amount_spent'],
+                    total_amount_target=payload['total_amount_target'],
+                    suggestions=parsed.get("tip", ""),
+                    categories=categories
+                )
             except Exception as e:
-                analysis_result = {"error": f"Exception occurred: {str(e)}"}
+                result = {"error": str(e)}
     else:
         form = ExpenseAnalyzerForm()
-    return render(request, "expense_result.html", {
-        "form": form,
-        "result": analysis_result
-    })
+    return render(request, "expense_result.html", {"form": form, "result": result})
+
+# Dashboard View
+
+@login_required
+def user_dashboard_view(request):
+    savings = SavingsPlan.objects.filter(user=request.user).order_by("-created_at")
+    expenses = ExpenseAnalysis.objects.filter(user=request.user).order_by("-created_at")
+    return render(request, "dashboard.html", {"savings": savings, "expenses": expenses})
+
 
 timestamp = datetime.datetime.now().isoformat()
 
@@ -301,52 +287,27 @@ def save_to_dynamodb(user, data, entry_type):
         print("[DynamoDB] ❌ Failed to save:", str(e))
 
 @login_required
-def user_dashboard_view(request):
-    user_data = []
-
-    try:
-        dynamodb = boto3.resource('dynamodb', region_name='eu-west-1')
-        table = dynamodb.Table('SmartSaverUserData')
-
-        response = table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('user_id').eq(str(request.user.id))
-        )
-
-        user_data = response.get("Items", [])
-        user_data.sort(key=lambda x: x['timestamp'], reverse=True)
-
-    except Exception as e:
-        print("[DynamoDB] ❌ Error fetching data:", str(e))
-
-    return render(request, "dashboard.html", {
-        "user_data": user_data
-    })
-
-@login_required
 @csrf_exempt
 def delete_entry_view(request):
     if request.method == "POST":
-        timestamp = request.POST.get("timestamp")
+        entry_type = request.POST.get("type")
+        entry_id = request.POST.get("id")
 
-        if not timestamp:
-            print("[Delete] ❌ No timestamp provided")
+        if not entry_type or not entry_id:
+            print("[Delete] ❌ Missing type or id")
             return redirect('dashboard')
 
         try:
-            dynamodb = boto3.resource('dynamodb', region_name='eu-west-1')
-            table = dynamodb.Table('SmartSaverUserData')
-
-            table.delete_item(
-                Key={
-                    'user_id': str(request.user.id),
-                    'timestamp': request.POST.get("timestamp")
-                }
-            )
-            print(f"[Delete] ✅ Deleted entry at {timestamp}")
+            if entry_type == "savings":
+                SavingsPlan.objects.filter(id=entry_id, user=request.user).delete()
+            elif entry_type == "expense":
+                ExpenseAnalysis.objects.filter(id=entry_id, user=request.user).delete()
+            print(f"[Delete] ✅ Deleted {entry_type} entry with ID: {entry_id}")
         except Exception as e:
-            print("[Delete] ❌ Failed to delete:", str(e))
+            print(f"[Delete] ❌ Failed to delete: {e}")
 
     return redirect('dashboard')
+
     
 
 # Handle Decimal for JSON
@@ -355,36 +316,31 @@ class DecimalEncoder(json.JSONEncoder):
         if isinstance(obj, decimal.Decimal):
             return float(obj)
         return super().default(obj)
-
 @login_required
 @csrf_exempt
 def generate_ai_tip_entry(request):
     try:
-        # 🧠 Get recent user data from DynamoDB
-        dynamodb = boto3.resource('dynamodb', region_name='eu-west-1')
-        table = dynamodb.Table('SmartSaverUserData')
+        recent_savings = list(SavingsPlan.objects.filter(user=request.user).order_by("-created_at")[:3])
+        recent_expenses = list(ExpenseAnalysis.objects.filter(user=request.user).order_by("-created_at")[:2])
 
-        response = table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('user_id').eq(str(request.user.id)),
-            ScanIndexForward=False,  # Latest entries first
-            Limit=5
-        )
-
-        entries = response.get("Items", [])
-
-        if not entries:
+        if not recent_savings and not recent_expenses:
             return render(request, "ai_tip.html", {
                 "tip": "No data found to generate a personalized insight. Try planning or analyzing first!"
             })
 
-        # 📝 Format entries into a readable summary
         summary = ""
-        for entry in entries:
-            summary += f"\nType: {entry['type']}\n"
-            summary += json.dumps(entry['data'], indent=2, cls=DecimalEncoder)
-            summary += "\n"
 
-        # 🧠 GPT prompt
+        for entry in recent_savings:
+            summary += f"\nSavings Plan:\n"
+            summary += f"- Goal Amount: {entry.goal_amount}\n"
+            summary += f"- Monthly Required: {entry.monthly_savings_required} USD\n"
+            summary += f"- Converted: {entry.monthly_savings_converted} {entry.converted_currency}\n"
+
+        for entry in recent_expenses:
+            summary += f"\nExpense Analysis:\n"
+            summary += f"- Spent: {entry.total_amount_spent}, Target: {entry.total_amount_target}\n"
+            summary += f"- Suggestions: {entry.suggestions}\n"
+
         prompt = f"""
 You are a smart financial advisor AI. Based on the user's recent savings plans and expense analysis, provide one highly personalized financial tip that could help them improve. Be specific and helpful.
 
@@ -394,7 +350,6 @@ User Financial History:
 Personalized Financial Advice:
 """
 
-        # 🚀 Together.ai API
         client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
         response = client.chat.completions.create(
             model="mistralai/Mixtral-8x7B-Instruct-v0.1",

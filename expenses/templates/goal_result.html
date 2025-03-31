@@ -47,7 +47,10 @@
             <p>
               <strong>Symbol:</strong> {{ result.etf_symbol }}<br>
               <strong>Price:</strong> {{ result.etf_price }} USD<br>
-              <strong>Change:</strong> {{ result.etf_change }}% (as of {{ result.investment_suggestions.recommended_etf.last_trading_day }})
+              <strong>Change:</strong> {{ result.etf_change }}%
+              {% if result.investment_suggestions.recommended_etf.last_trading_day %}
+                (as of {{ result.investment_suggestions.recommended_etf.last_trading_day }})
+              {% endif %}
             </p>
           </div>
 
@@ -75,6 +78,8 @@
                 This chart visualizes your ETF and crypto allocation. A log scale is used to normalize the differences in values.
               </p>
               <canvas id="investmentChart" height="150"></canvas>
+
+
             </div>
 
             <script>
@@ -121,10 +126,11 @@
       {% endif %}
     {% endif %}
   </div>
+
   <div class="text-center mt-4">
-  <a href="{% url 'analyze_expenses' %}" class="btn btn-outline-secondary">
-    💸 Try Expense Analyzer
-  </a>
-</div>
+    <a href="{% url 'analyze_expenses' %}" class="btn btn-outline-secondary">
+      💸 Try Expense Analyzer
+    </a>
+  </div>
 </body>
 </html>

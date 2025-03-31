@@ -16,53 +16,52 @@
       <p class="lead">Welcome back, <strong>{{ user.username }}</strong>!</p>
     </div>
 
-    {% if user_data %}
+    {% if savings or expenses %}
       <div class="row row-cols-1 row-cols-md-2 g-4">
-        {% for entry in user_data %}
-          <div class="col">
-            <div class="card shadow-sm {% if entry.type == 'savings_plan' %}card-type-savings{% else %}card-type-expense{% endif %}">
-              <div class="card-body">
-                <h5 class="card-title">
-                  {% if entry.type == 'savings_plan' %}
-                    💰 Savings Plan
-                  {% elif entry.type == 'expense_analysis' %}
-                    💸 Expense Analysis
-                  {% else %}
-                    📁 Entry
-                  {% endif %}
 
-                  <!-- 🗑️ Delete Button -->
+        {% for entry in savings %}
+          <div class="col">
+            <div class="card shadow-sm card-type-savings">
+              <div class="card-body">
+                <h5 class="card-title">💰 Savings Plan
                   <form action="{% url 'delete_entry' %}" method="post" style="display:inline;">
                     {% csrf_token %}
-                    <input type="hidden" name="timestamp" value="{{ entry.timestamp }}">
+                    <input type="hidden" name="type" value="savings">
+                     <a href="{% url 'generate_ai_tip_entry' %}" class="btn btn-secondary me-2">🧠 Generate AI Tip</a>
+                    <input type="hidden" name="id" value="{{ entry.id }}">
                     <button type="submit" class="btn btn-sm btn-outline-danger float-end">🗑️ Delete</button>
                   </form>
-                  
-                  <form method="post" action="{% url 'generate_ai_tip_entry' %}">
-  {% csrf_token %}
-  <input type="hidden" name="entry" value='{{ entry|json_script:"entry-data" }}'>
-  <button class="btn btn-outline-secondary btn-sm mt-2" type="submit">
-    🧠 AI Tip
-  </button>
-</form>
                 </h5>
-
-                <p class="card-text small text-muted">{{ entry.timestamp|date:"Y-m-d H:i" }}</p>
-
-                {% if entry.type == 'savings_plan' %}
-                  <p><strong>Monthly:</strong> {{ entry.data.monthly_savings_converted }} {{ entry.data.converted_currency }}</p>
-                  <p><strong>Message:</strong> {{ entry.data.message }}</p>
-                  <p><strong>Risk Profile:</strong> {{ entry.data.risk_profile|title }}</p>
-                {% elif entry.type == 'expense_analysis' %}
-                  <p><strong>Total Spent:</strong> {{ entry.data.total_spent }}</p>
-                  <p><strong>Budget:</strong> {{ entry.data.total_target }}</p>
-                  <p><strong>Result:</strong> {{ entry.data.result }}</p>
-                  <p><strong>Tip:</strong> {{ entry.data.funny_tip|default:"–" }}</p>
-                {% endif %}
+                <p class="card-text small text-muted">{{ entry.created_at|date:"Y-m-d H:i" }}</p>
+                <p><strong>Goal Amount:</strong> {{ entry.goal_amount }}</p>
+                <p><strong>Monthly Required:</strong> {{ entry.monthly_savings_converted }} {{ entry.converted_currency }}</p>
+                <p><strong>ETF:</strong> {{ entry.etf_symbol }} - ${{ entry.etf_price }} ({{ entry.etf_change }}%)</p>
               </div>
             </div>
           </div>
         {% endfor %}
+
+        {% for entry in expenses %}
+          <div class="col">
+            <div class="card shadow-sm card-type-expense">
+              <div class="card-body">
+                <h5 class="card-title">💸 Expense Analysis
+                  <form action="{% url 'delete_entry' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="expense">
+                    <input type="hidden" name="id" value="{{ entry.id }}">
+                     <a href="{% url 'generate_ai_tip_entry' %}" class="btn btn-secondary me-2">🧠 Generate AI Tip</a>
+                    <button type="submit" class="btn btn-sm btn-outline-danger float-end">🗑️ Delete</button>
+                  </form>
+                </h5>
+                <p class="card-text small text-muted">{{ entry.created_at|date:"Y-m-d H:i" }}</p>
+                <p><strong>Total Spent:</strong> {{ entry.total_amount_spent }}</p>
+                <p><strong>Budget:</strong> {{ entry.total_amount_target }}</p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+
       </div>
     {% else %}
       <div class="alert alert-info text-center">
@@ -73,6 +72,7 @@
     <div class="mt-5 text-center">
       <a href="{% url 'savings_goal' %}" class="btn btn-success me-2">💰 Plan Savings</a>
       <a href="{% url 'analyze_expenses' %}" class="btn btn-primary me-2">💸 Analyze Expenses</a>
+     
       <a href="{% url 'logout' %}" class="btn btn-outline-danger">Logout</a>
     </div>
   </div>
