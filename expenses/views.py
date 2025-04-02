@@ -8,6 +8,7 @@ from .forms import SavingsGoalForm, ExpenseAnalyzerForm
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth import login
+from django.contrib import messages
 from .forms import RegisterForm
 from django.db import IntegrityError  # Add this
 from django.contrib.auth.decorators import login_required
@@ -118,9 +119,6 @@ def savings_goal_view(request):
             user_email = form.cleaned_data.get("email")
             chart_image_base64 = form.cleaned_data.get("chart_image")
 
-            print("[Chart] base64 length:", len(chart_image_base64 or ""))
-            print("[Chart] base64 sample:", chart_image_base64[:50] if chart_image_base64 else "None")
-
             payload = {
                 "goal_amount": goal_amount,
                 "current_savings": current_savings,
@@ -134,19 +132,20 @@ def savings_goal_view(request):
                 if "monthly_savings_required" not in data:
                     raise ValueError("Missing 'monthly_savings_required' in API response.")
 
-                # Currency conversion
+                # Currency Conversion
                 if currency != "USD":
                     try:
                         rate = requests.get(f"{CURRENCY_API}?from=USD&to={currency}").json()["rates"][currency]
                         data["monthly_savings_converted"] = round(data["monthly_savings_required"] * rate, 2)
                         data["converted_currency"] = currency
-                    except Exception:
+                    except:
                         data["monthly_savings_converted"] = data["monthly_savings_required"]
                         data["converted_currency"] = "USD"
                 else:
                     data["monthly_savings_converted"] = data["monthly_savings_required"]
                     data["converted_currency"] = "USD"
 
+                # Add ETF & Crypto Info
                 etf = data.get("investment_suggestions", {}).get("recommended_etf", {})
                 crypto = data.get("investment_suggestions", {}).get("recommended_crypto", [])
 
@@ -164,20 +163,43 @@ def savings_goal_view(request):
                     "chart_values": values,
                 })
 
-                chart_url = upload_chart_to_s3(chart_image_base64) if chart_image_base64 else None
-                data["chart_url"] = chart_url
-
+                # Send Email Summary (without chart)
                 if user_email:
+                    crypto_lines = "\n".join([f"- {coin['name']} ({coin['symbol'].upper()}): ${coin['price_usd']}" for coin in crypto])
+                    email_content = f"""
+Hello!
+
+Here's your SmartSaver savings plan:
+
+🎯 Savings Goal:
+- Monthly Saving: {data['monthly_savings_converted']} {data['converted_currency']}
+- Duration: {data['months_remaining']} months
+- Risk Profile: {data['risk_profile'].capitalize()}
+
+📈 ETF:
+- {etf.get('symbol', '')} - ${etf.get('price_usd', 0)}, Change: {etf.get('change_percent', '0')}
+
+💹 Cryptocurrencies:
+{crypto_lines}
+
+Thanks for using SmartSaver!
+                    """.strip()
+
                     email_payload = {
                         "email": user_email,
-                        "subject": "Your SmartSaver Plan",
-                        "content": f"Generated plan with monthly saving: {data['monthly_savings_converted']} {data['converted_currency']}\n\nChart: {chart_url or 'Chart not available'}"
+                        "subject": "📊 Your SmartSaver Savings Plan",
+                        "content": email_content
                     }
-                    requests.post(EMAIL_API, json=email_payload)
 
-                converted_data = data
+                    res = requests.post(EMAIL_API, json=email_payload)
+                    if res.status_code == 200:
+                        messages.success(request, "📬 Email sent successfully!")
+                        data["email_status"] = "📬 Email sent!"
+                    else:
+                        messages.warning(request, "⚠️ Email could not be sent.")
+                        data["email_status"] = "⚠️ Failed to send email."
 
-                # Save to model
+                # Save to DB
                 SavingsPlan.objects.create(
                     user=request.user,
                     goal_amount=goal_amount,
@@ -191,16 +213,16 @@ def savings_goal_view(request):
                     etf_change=data['etf_change']
                 )
 
+                converted_data = data
+
             except Exception as e:
-                print("[Savings Planner] ❌ Exception:", str(e))
-                converted_data = {"error": f"Exception: {str(e)}"}
+                print("[Planner Exception]", e)
+                converted_data = {"error": str(e)}
 
     else:
         form = SavingsGoalForm()
 
     return render(request, "goal_result.html", {"form": form, "result": converted_data})
-
-
 # Expense Analyzer
 
 @login_required
